@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "enso-inwaters"
+version = "0.1.0"
+description = "Super El Nino impacts on global inland waters (ISIMIP3a)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore:.*Mean of empty slice.*:RuntimeWarning",
+]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+extend-exclude = ["data", "results"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = ["E501", "E731", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"workflow/*.py" = ["E402"]   # sys.path setup must precede the imports
+"tests/*.py" = ["E402"]

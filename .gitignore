@@ -1,0 +1,46 @@
+# Data (never versioned - regenerate with the workflow)
+data/raw/**
+data/interim/**
+data/processed/**
+!data/**/.gitkeep
+!data/**/README.md
+
+# Results are reproducible outputs; keep the small ones only
+results/figures/*.png
+results/figures/*.pdf
+results/**/*.nc
+logs/*.log
+logs/*.jsonl
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# OS / editors
+.DS_Store
+*.swp
+.vscode/
+.idea/
+
+# Snakemake / cluster
+.snakemake/
+slurm-*.out
+
+# Generated tables, rendered manuscript and paper-numbers JSON are
+# reproducible outputs of the workflow (see workflow/30_*, 31_*, 40_*).
+# Never commit them: whatever is on disk when someone runs `git add -A`
+# reflects whichever config was last run (synthetic smoke test or the
+# real analysis), and a synthetic result committed to the repo is
+# indistinguishable from a real one to anyone who clones it later.
+results/tables/*.csv
+results/tables/*.meta.json
+results/tables/*.json
+results/tables/README.md
+results/tables/all_tables.md
+paper/manuscript.md

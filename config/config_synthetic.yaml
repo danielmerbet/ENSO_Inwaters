@@ -1,0 +1,63 @@
+# Configuration for the SYNTHETIC smoke test (tests/make_synthetic_dataset.py).
+# Only the settings that differ from the production config are listed;
+# everything else is inherited via `_base`.
+#
+#   python tests/make_synthetic_dataset.py
+#   ENSO_INWATERS_CONFIG=config/config_synthetic.yaml bash workflow/run_all.sh
+#
+# Results from this configuration are NOT science - the inputs are made up.
+
+_base: config/config.yaml
+
+project:
+  name: ENSO_Inwaters_synthetic
+  title: "SYNTHETIC smoke test - not a scientific result"
+
+period:
+  discard_spinup_years: 0     # the synthetic data needs no spin-up
+
+enso:
+  expected_super_events: [1972, 1982, 1997, 2015]
+  presatellite_candidates: [1918, 1925, 1940]
+
+isimip:
+  sectors:
+    water_global:
+      models: [cwatm, h08, watergap2-2e, jules-w1]
+      variables:
+        dis:         {long_name: "river discharge",         units: "m3 s-1"}
+        qtot:        {long_name: "total runoff",            units: "kg m-2 s-1"}
+        qr:          {long_name: "groundwater recharge",    units: "kg m-2 s-1"}
+        tws:         {long_name: "total water storage",     units: "kg m-2"}
+        rootmoist:   {long_name: "root-zone soil moisture", units: "kg m-2"}
+        groundwstor: {long_name: "groundwater storage",     units: "kg m-2"}
+      required_variables: [dis, qtot, qr, tws]
+    lakes_global:
+      models: [albm, gotm, simstrat-uog]
+      variables:
+        surftemp:    {long_name: "lake surface temperature", units: "K"}
+        lakeicefrac: {long_name: "lake ice fraction",        units: "1"}
+      required_variables: [surftemp]
+
+auxiliary:
+  basins:
+    file: "data/raw/basins/basin_id_synthetic.nc"
+  population:
+    file: "data/raw/population/population_synthetic.nc"
+
+processing:
+  land_mask: "data/raw/masks/landseamask_synthetic.nc"
+  indices:
+    variables: [dis]          # one variable is enough for a smoke test
+    sri_scales: [3, 12]       # skip the 1-month index to save time
+  chunks:
+    time: 240
+    lat: 45
+    lon: 90
+
+statistics:
+  bootstrap:
+    n_iterations: 500         # 10000 in production
+
+runtime:
+  n_workers: 2

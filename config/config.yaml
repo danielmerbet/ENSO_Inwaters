@@ -1,0 +1,267 @@
+# =====================================================================
+# ENSO_Inwaters -- master configuration
+# Influence of super El Nino events on global inland waters (ISIMIP3a)
+# ---------------------------------------------------------------------
+# Every workflow script reads this file. Nothing else is hard-coded.
+# Override at run time with:  --config config/config_synthetic.yaml
+# =====================================================================
+
+project:
+  name: ENSO_Inwaters
+  title: >-
+    Super El Nino events and global inland waters: rivers, lakes and groundwater
+    in the ISIMIP3a multi-model ensemble
+  version: 0.1.0
+
+paths:
+  root: "."
+  raw: "data/raw"
+  interim: "data/interim"
+  processed: "data/processed"
+  figures: "results/figures"
+  tables: "results/tables"
+  logs: "logs"
+
+# ---------------------------------------------------------------------
+# 1. Analysis period
+# ---------------------------------------------------------------------
+period:
+  start: 1901          # ISIMIP3a obsclim (GSWP3-W5E5) starts 1901
+  end: 2019            # ... and ends 2019
+  # Reference period used for the *fixed* climatology option.
+  climatology_start: 1901
+  climatology_end: 2019
+  # Spin-up years discarded from every impact-model simulation
+  discard_spinup_years: 10      # -> effective analysis starts 1911
+
+# ---------------------------------------------------------------------
+# 2. ENSO index and event definition
+# ---------------------------------------------------------------------
+enso:
+  # Primary index: Oceanic Nino Index (ONI) = 3-month running mean of
+  # Nino3.4 (5N-5S, 170W-120W) SST anomalies, ERSSTv5.
+  index: oni
+  sources:
+    # CPC operational ONI, 1950-present, centred 30-yr base periods
+    cpc_oni: "https://origin.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/ONI_v5.php"
+    # CPC ASCII Nino3.4 (1950-present) - machine readable
+    cpc_nino34: "https://origin.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/detrend.nino34.ascii.txt"
+    # NOAA PSL Nino3.4 from ERSSTv5, 1854-present -> needed to reach back to 1901
+    psl_nino34_ersstv5: "https://psl.noaa.gov/data/correlation/nina34.anom.data"
+    psl_nino34_raw: "https://psl.noaa.gov/gcos_wgsp/Timeseries/Data/nino34.long.data"
+    # HadISST-based Nino3.4 as an independent SST product (sensitivity)
+    hadisst_nino34: "https://psl.noaa.gov/gcos_wgsp/Timeseries/Data/nino34.long.anom.data"
+  # Pre-1950 ONI is reconstructed from ERSSTv5 Nino3.4 using a 30-yr
+  # centred, 5-yr-stepped base period (the CPC procedure) so that the
+  # index is not contaminated by the long-term tropical warming trend.
+  base_period:
+    method: "sliding_30yr"      # sliding_30yr | fixed
+    window_years: 30
+    step_years: 5
+  # Event detection on the ONI series
+  event_detection:
+    threshold: 0.5              # deg C, El Nino if ONI >= +0.5
+    min_consecutive_seasons: 5  # overlapping 3-month seasons
+    peak_season: "DJF"          # season used to rank event amplitude
+  # Amplitude classes (peak DJF ONI, deg C)
+  classes:
+    weak:        [0.5, 1.0]
+    moderate:    [1.0, 1.5]
+    strong:      [1.5, 2.0]
+    super:       [2.0, 99.0]    # "super"/"very strong" El Nino
+  # Events used as the *primary* super-El-Nino sample. Determined by
+  # script 02 from the data; listed here only to pin the expected result
+  # and to allow a manual override.
+  expected_super_events: [1972, 1982, 1997, 2015]
+  # Pre-1950 candidates from ERSSTv5 only (lower observational
+  # confidence) - used in a sensitivity test, not in the main analysis.
+  presatellite_candidates: [1918, 1925, 1940]
+  include_presatellite_in_main: false
+  # La Nina counterparts (for the symmetry/asymmetry analysis)
+  la_nina_threshold: -0.5
+  super_la_nina_threshold: -1.5
+  # Event flavour: Eastern Pacific (EP) vs Central Pacific (CP)
+  flavour:
+    method: "EC_index"          # Takahashi et al. (2011) E and C indices
+    compute: true
+
+# Composite (superposed-epoch) window, in months relative to the
+# peak of the event (defined as the month of maximum ONI, ~Nov-Jan).
+composite:
+  lag_min: -18
+  lag_max: 30
+  # Seasons reported in the paper, relative to the developing year (0)
+  key_seasons:
+    developing:  ["JJA0", "SON0"]
+    mature:      ["DJF01"]
+    decaying:    ["MAM1", "JJA1"]
+    lagged:      ["SON1", "DJF12"]
+
+# ---------------------------------------------------------------------
+# 3. ISIMIP3a data selection
+# ---------------------------------------------------------------------
+isimip:
+  simulation_round: ISIMIP3a
+  api: "https://data.isimip.org/api/v1"
+  files_base: "https://files.isimip.org/ISIMIP3a/OutputData"
+  # climate forcing
+  climate_forcing: [gswp3-w5e5]
+  # obsclim  = observed climate; counterclim = detrended, no-climate-change
+  climate_scenario: [obsclim, counterclim]
+  # histsoc  = time-varying direct human influence (dams, water use)
+  # nosoc/1901soc = fixed -> isolates the climate signal
+  soc_scenario: [histsoc, nosoc]
+  main_scenario:
+    climate_scenario: obsclim
+    soc_scenario: histsoc
+  resolution: "0.5deg"
+  time_step: monthly
+
+  sectors:
+    water_global:
+      models: [cwatm, h08, jules-w1, miroc-integ-land, watergap2-2e]
+      variables:
+        dis:        {long_name: "river discharge",              units: "m3 s-1"}
+        qtot:       {long_name: "total runoff",                 units: "kg m-2 s-1"}
+        qr:         {long_name: "groundwater recharge",         units: "kg m-2 s-1"}
+        tws:        {long_name: "total water storage",          units: "kg m-2"}
+        rootmoist:  {long_name: "root-zone soil moisture",      units: "kg m-2"}
+        groundwstor: {long_name: "groundwater storage",          units: "kg m-2"}
+        evap:       {long_name: "total evapotranspiration",     units: "kg m-2 s-1"}
+      # Not every model provides every variable; script 03 writes the
+      # realised model x variable matrix to data/raw/isimip_manifest.csv
+      required_variables: [dis, qtot, qr, tws]
+
+    lakes_global:
+      models: [albm, gotm, simstrat-uog, vic-lake, clm45]
+      variables:
+        surftemp:    {long_name: "lake surface water temperature", units: "K"}
+        watertemp:   {long_name: "lake water temperature profile", units: "K"}
+        lakeicefrac: {long_name: "lake ice fraction",              units: "1"}
+        icethick:    {long_name: "lake ice thickness",             units: "m"}
+      required_variables: [surftemp]
+
+  # Climate forcing fields used to interpret the hydrological response
+  forcing_variables: [pr, tas, rsds]
+
+# ---------------------------------------------------------------------
+# 4. Auxiliary / observational data
+# ---------------------------------------------------------------------
+auxiliary:
+  basins:
+    name: "GRDC Major River Basins of the World"
+    url: "https://www.bafg.de/GRDC/EN/02_srvcs/22_gslrs/221_MRB/riverbasins.html"
+    file: "data/raw/basins/mrb_basins.gpkg"
+    n_basins_reported: 40
+  lakes:
+    name: "HydroLAKES v1.0 (polygons) / GLDB depths"
+    url: "https://www.hydrosheds.org/products/hydrolakes"
+    file: "data/raw/lakes/HydroLAKES_polys_v10.gdb"
+    min_area_km2: 100
+  population:
+    name: "HYDE 3.2 (1901-2017) + GPW v4 (validation)"
+    url: "https://doi.org/10.17026/dans-25g-gez3"
+    file: "data/raw/population/hyde32_popd_halfdeg.nc"
+  observations:
+    grdc_discharge:
+      name: "GRDC monthly discharge (station observations)"
+      url: "https://portal.grdc.bafg.de/"
+      file: "data/raw/obs/grdc_monthly.nc"
+      min_years: 40
+      max_missing_frac: 0.1
+    grace_tws:
+      name: "GRACE/GRACE-FO JPL mascons RL06.1 (2002-)"
+      url: "https://podaac.jpl.nasa.gov/"
+      file: "data/raw/obs/grace_jpl_mascon.nc"
+    lswt_satellite:
+      name: "ESA CCI Lakes v2 / GloboLakes LSWT"
+      url: "https://climate.esa.int/en/projects/lakes/"
+      file: "data/raw/obs/esacci_lakes_lswt.nc"
+    era5_land:
+      name: "ERA5-Land monthly runoff & soil moisture (cross-check)"
+      url: "https://cds.climate.copernicus.eu/"
+      file: "data/raw/obs/era5_land_monthly.nc"
+
+# ---------------------------------------------------------------------
+# 5. Processing options
+# ---------------------------------------------------------------------
+processing:
+  target_grid: "0.5deg"          # common analysis grid
+  regrid_method: "conservative"  # for any model not native 0.5 deg
+  land_mask: "data/raw/masks/landseamask_0.5deg.nc"
+  # Anomaly definition
+  anomaly:
+    method: "standardized"       # standardized | absolute | percent
+    deseasonalize: true
+    # Moving climatology removes the long-term trend without a
+    # parametric detrend, which matters over 1901-2019.
+    climatology: "moving_30yr"   # moving_30yr | fixed | none
+    detrend: "none"              # none | linear (applied after climatology)
+    min_years_for_std: 20
+    # Grid cells whose monthly std is ~0 (deserts, permanent ice) are masked
+    min_std_relative: 1.0e-6
+  # Drought / flood indices
+  indices:
+    # Variables that get a gamma-fitted standardized index. Keep this
+    # short: the per-cell, per-calendar-month fits are the slowest part
+    # of the workflow.
+    variables: [dis, qtot, qr, groundwstor, rootmoist]
+    # Standardized indices are computed for the main scenario only.
+    main_scenario_only: true
+    sri_scales: [1, 3, 12]       # Standardized Runoff Index accumulation (months)
+    ssi_scales: [1, 3, 12]       # Standardized Streamflow Index
+    sgi_scales: [3, 12]          # Standardized Groundwater Index
+    distribution: "gamma"        # fitted per calendar month; "empirical" fallback
+    drought_threshold: -1.0      # SRI/SSI/SGI below this = drought month
+    flood_threshold: 1.0
+  chunks:                        # dask chunking for the big netCDFs
+    time: 120
+    lat: 180
+    lon: 360
+
+# ---------------------------------------------------------------------
+# 6. Statistics
+# ---------------------------------------------------------------------
+statistics:
+  bootstrap:
+    n_iterations: 10000
+    method: "moving_block"       # moving_block | phase_randomization
+    block_length_months: 24      # >= the persistence of the anomalies
+    seed: 20260101
+  significance:
+    alpha: 0.05
+    field_significance: "fdr_bh" # Benjamini-Hochberg (Wilks 2016)
+    alpha_fdr: 0.10
+  multimodel:
+    min_models: 3
+    agreement_fraction: 0.66     # >=2/3 of models must agree on sign
+  nonlinearity:
+    # super vs. amplitude-scaled strong/moderate composite
+    reference_class: [moderate, strong]
+    scaling: "oni_peak"          # composite scaled by mean peak ONI ratio
+    # b0 + b1*z + b2*z^2 + b3*z*|z|  (z = ONI - mean ONI): b2 is the
+    # El-Nino/La-Nina asymmetry, b3 the amplitude steepening.
+    regression_terms: ["oni", "oni2", "oni_abs_oni"]
+  variance_partition:
+    factors: [model, event, residual]   # ANOVA-style decomposition
+
+# ---------------------------------------------------------------------
+# 7. Figures
+# ---------------------------------------------------------------------
+figures:
+  dpi: 300
+  format: [png, pdf]
+  projection: "Robinson"
+  colormaps:
+    anomaly: "BrBG"              # wet-dry (brown-green), colourblind safe
+    temperature: "RdBu_r"
+    agreement: "viridis"
+  hatch_significant: "///"
+  font_size: 8
+  single_column_width_mm: 89
+  double_column_width_mm: 183
+
+runtime:
+  n_workers: 4
+  memory_limit: "4GB"
+  overwrite: false

@@ -1,0 +1,38 @@
+# conda/mamba environment for ENSO_Inwaters
+#   mamba env create -f environment.yml && conda activate enso-inwaters
+name: enso-inwaters
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  # core numerics and netCDF
+  - numpy>=1.24
+  - pandas>=2.0
+  - xarray>=2023.6
+  - netcdf4>=1.6
+  - h5netcdf
+  - cftime
+  - scipy>=1.10
+  - dask>=2023.5
+  - bottleneck            # faster rolling reductions in xarray
+  - pyyaml
+  # geospatial
+  - geopandas>=0.13
+  - regionmask>=0.9
+  - rasterio
+  - shapely
+  - pyproj
+  - cartopy>=0.22
+  # statistics and plotting
+  - statsmodels
+  - matplotlib>=3.7
+  # data access
+  - requests
+  - pip
+  # development
+  - pytest
+  - ruff
+  - tabulate              # Markdown rendering of the tables
+  - jupyterlab
+  - pip:
+      - isimip-client>=1.0     # ISIMIP repository API
